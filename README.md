@@ -39,10 +39,10 @@ Daily aggregates from **ERA5-Land** (`ECMWF/ERA5_LAND/DAILY_AGGR`), extracted wi
 2. **Scaling:** each variable is z-scored with training-period statistics only.
 3. **Missingness** (seed 42, identical for every model): for each variable, 10 % of the days are removed at random and about 10 % more as contiguous runs of 3–10 days, 18.5 % of all values in total. The removed values are kept as ground truth.
 4. **Model input** for the imputation models: zero-filled values plus a missing-value indicator for each 30-day block (30 days × 12 channels).
-5. **Training:** each model keeps the weights of its best validation epoch. Every model is trained once, with seed 42.
+5. **Training:** each model keeps the weights of its best validation epoch. Every model is trained once, with seed 42. A re-run on the same machine gives the same results.
 6. **Evaluation** on the test period:
    - *Imputation:* RMSE and MAE at the removed positions only, for temperature and for all six variables, in scaled units.
-   - *Forecasting:* 7-day temperature forecasts for 596 test windows; RMSE and MAE (°C and scaled), R², and RMSE by lead day. The shared generators forecast by filling the last 7 days of a 30-day block whose first 23 days are observed.
+   - *Forecasting:* 7-day temperature forecasts for 596 test windows; RMSE and MAE (unscaled and scaled), R², and RMSE by lead day. The shared generators forecast by filling the last 7 days of a 30-day block whose first 23 days are observed.
    - *Efficiency:* trainable parameters and training time.
 
 ## Results
@@ -53,34 +53,34 @@ The numbers below are those of the run shown in the notebook: one run with seed 
 
 | Model | `impute_rmse_temp` | `impute_mae_temp` | `impute_rmse_allfeat` | `impute_mae_allfeat` |
 |---|---|---|---|---|
-| Shared GAN | 0.3107 | 0.2397 | 0.8467 | 0.4416 |
-| Shared WGAN-GP | **0.2896** | **0.2218** | **0.7865** | **0.3838** |
-| Simple GAN (imputation only) | 0.3255 | 0.2461 | 0.8568 | 0.4449 |
+| Shared GAN | 0.3180 | 0.2451 | 0.8350 | 0.4357 |
+| Shared WGAN-GP | **0.2797** | **0.2195** | **0.7847** | **0.3781** |
+| Simple GAN (imputation only) | 0.3180 | 0.2451 | 0.8350 | 0.4357 |
 
 **7-day temperature forecasting** (596 test windows)
 
-| Model | `RMSE_degC` | `MAE_degC` | `R2` | `RMSE_scaled` | `MAE_scaled` |
+| Model | `RMSE` | `MAE` | `R2` | `RMSE_scaled` | `MAE_scaled` |
 |---|---|---|---|---|---|
-| Shared GAN | 1.5395 | 1.2129 | 0.6063 | 0.5580 | 0.4396 |
-| Shared WGAN-GP | 1.2309 | 0.9783 | 0.7484 | 0.4461 | 0.3546 |
-| Simple GAN (forecasting only) | **0.9539** | **0.7196** | **0.8489** | **0.3457** | **0.2608** |
+| Shared GAN | 1.7635 | 1.4335 | 0.4834 | 0.6392 | 0.5195 |
+| Shared WGAN-GP | 1.3200 | 1.0537 | 0.7106 | 0.4784 | 0.3819 |
+| Simple GAN (forecasting only) | **0.9348** | **0.7026** | **0.8548** | **0.3388** | **0.2546** |
 
-RMSE by lead day, from day 1 to day 7: Simple GAN 0.60 to 1.11 °C, Shared WGAN-GP 0.96 to 1.39 °C, Shared GAN 0.95 to 1.95 °C.
+RMSE by lead day, from day 1 to day 7: Simple GAN 0.61 to 1.08, Shared WGAN-GP 0.95 to 1.51, Shared GAN 1.13 to 2.05.
 
 **Parameters and training time**
 
 | Approach | Generators for both tasks | Generator parameters | Parameters incl. discriminator/critic | Training time (min) |
 |---|---|---|---|---|
-| Shared GAN | 1 | **146,886** | **175,260** | **3.1** |
-| Shared WGAN-GP | 1 | **146,886** | 193,639 | 8.1 |
-| Simple GAN | 2 | 203,725 | 256,964 | 12.0 (2.6 imputation + 9.4 forecasting) |
+| Shared GAN | 1 | **146,886** | **175,260** | **2.9** |
+| Shared WGAN-GP | 1 | **146,886** | 193,639 | 7.8 |
+| Simple GAN | 2 | 203,725 | 256,964 | 11.9 (2.6 imputation + 9.3 forecasting) |
 
 **Summary**
 
-* **Imputation:** the Shared WGAN-GP has the lowest error of the three models on all four metrics. Its temperature RMSE is 11 % lower than the Simple GAN's (0.2896 vs. 0.3255) and 7 % lower than the Shared GAN's (0.3107).
-* **Forecasting:** the Simple GAN forecaster, trained for this task, has the lowest error. The RMSE of the Shared WGAN-GP is 29 % higher (1.231 vs. 0.954 °C), and that of the Shared GAN 61 % higher (1.540 °C).
-* **Cost:** each shared model handles both tasks with one generator of 146,886 parameters, 28 % fewer than the two generators of the Simple GAN approach (203,725), and with one training run: 3.1 min (Shared GAN) and 8.1 min (Shared WGAN-GP), against 12.0 min for the two Simple GAN networks on the same CPU.
-* **Training:** the validation error of the Shared WGAN-GP was still decreasing at the last of its 100 epochs.
+* **Imputation:** the Shared WGAN-GP has the lowest error of the three models on all four metrics. Its temperature RMSE is 12 % lower (0.2797 vs. 0.3180) than that of the Shared GAN and the Simple GAN, which give identical imputation results to four decimals: they are the same network with the same objective, settings and seed.
+* **Forecasting:** the Simple GAN forecaster, trained for this task, has the lowest error. The RMSE of the Shared WGAN-GP is 41 % higher (1.320 vs. 0.935), and that of the Shared GAN 89 % higher (1.764).
+* **Cost:** each shared model handles both tasks with one generator of 146,886 parameters, 28 % fewer than the two generators of the Simple GAN approach (203,725), and with one training run: 2.9 min (Shared GAN) and 7.8 min (Shared WGAN-GP), against 11.9 min for the two Simple GAN networks on the same CPU.
+* **Training:** the validation error of the Shared WGAN-GP reached its lowest value in the last ten of its 100 epochs.
 * **The claim:** in this run, the shared architecture needs fewer parameters and less training time for the two tasks, and the Shared WGAN-GP is the most accurate imputer. For forecasting, the dedicated Simple GAN forecaster is more accurate than both shared models.
 
 ![Test forecast RMSE by lead day for the three GAN models](outputs/forecast_rmse_by_lead_day.png)
@@ -101,7 +101,7 @@ pip install -r requirements.txt
 jupyter lab Adversarial_Forecasting_GAN.ipynb
 ```
 
-The run shown in the notebook took 25 minutes on a 4-core CPU with TensorFlow 2.21; a GPU runtime is optional.
+The run shown in the notebook took 23 minutes on a 4-core CPU with TensorFlow 2.21; a GPU runtime is optional.
 
 ## Outputs
 

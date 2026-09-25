@@ -1,2 +1,2 @@
-,impute_rmse_temp,impute_mae_temp,impute_rmse_temp_degC,impute_mae_temp_degC,impute_rmse_allfeat,impute_mae_allfeat
-GAN_imputation_only,0.32554131746292114,0.24606646597385406,0.8982328619619404,0.6789460326790313,0.8567622900009155,0.44485747814178467
+,impute_rmse_temp,impute_mae_temp,impute_rmse_allfeat,impute_mae_allfeat
+GAN_imputation_only,0.31796256,0.24512708,0.83502406,0.43570024

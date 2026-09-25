@@ -23,16 +23,16 @@
   },
   "metrics": {
     "GAN": {
-      "impute_rmse_allfeat": 0.846739649772644,
-      "impute_mae_allfeat": 0.4415597915649414,
-      "impute_rmse_temp": 0.3107035458087921,
-      "impute_mae_temp": 0.23973309993743896
+      "impute_rmse_allfeat": 0.8350241184234619,
+      "impute_mae_allfeat": 0.43570026755332947,
+      "impute_rmse_temp": 0.31796255707740784,
+      "impute_mae_temp": 0.24512708187103271
     },
     "WGAN_GP": {
-      "impute_rmse_allfeat": 0.7864722013473511,
-      "impute_mae_allfeat": 0.38378793001174927,
-      "impute_rmse_temp": 0.28960293531417847,
-      "impute_mae_temp": 0.22177724540233612
+      "impute_rmse_allfeat": 0.7847225666046143,
+      "impute_mae_allfeat": 0.3781420588493347,
+      "impute_rmse_temp": 0.27966925501823425,
+      "impute_mae_temp": 0.21950846910476685
     }
   }
 }

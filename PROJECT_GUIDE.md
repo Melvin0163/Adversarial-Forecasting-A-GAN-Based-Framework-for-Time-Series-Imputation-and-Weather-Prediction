@@ -46,9 +46,9 @@ Three models are compared. Only GAN variants take part; no non-GAN baseline is i
 
 **Results in brief** (one run, seed 42; details in [Section 7](#7-results)):
 
-* **Imputation:** the Shared WGAN-GP has the lowest error of the three models on all four imputation metrics.
-* **Forecasting:** the Simple GAN forecaster has the lowest error; the shared models' 7-day forecasts have a higher RMSE (29 % higher for the Shared WGAN-GP).
-* **Cost:** each shared model handles both tasks with one generator of 146,886 parameters, 28 % fewer than the two Simple GAN generators, and with less training time.
+* **Imputation:** the Shared WGAN-GP has the lowest error of the three models on all four metrics.
+* **Forecasting:** the Simple GAN forecaster, trained for this task, has the lowest error; the other models' 7-day forecasts have a higher RMSE (41 % higher for the Shared WGAN-GP).
+* **Cost:** each shared model handles both tasks with one generator of 146,886 parameters, 28 % fewer than the two Simple GAN generators, and with one training run.
 
 ---
 
@@ -133,7 +133,7 @@ Every test day lies after every training day. The forecasting experiment uses th
 
 ### 4.3 Scaling
 
-Each variable is z-scored with a `StandardScaler` fitted on the training rows only (rows 0–19,409), and the same transformation is applied to all rows. For temperature, the training mean is 27.76 °C and the training standard deviation is 2.759 °C. A temperature error in scaled units therefore converts to °C by multiplying by 2.759.
+Each variable is z-scored with a `StandardScaler` fitted on the training rows only (rows 0–19,409), and the same transformation is applied to all rows. For temperature, the training mean is 27.76 °C and the training standard deviation is 2.759 °C.
 
 ### 4.4 Artificial missingness
 
@@ -245,7 +245,7 @@ A conditional GAN that predicts the next 7 days of temperature from the previous
 
 $$\mathcal{L}_D = \mathrm{BCE}\big(1, D(c, y)\big) + \mathrm{BCE}\big(0, D(c, G(c, z))\big), \qquad \mathcal{L}_G = \mathrm{BCE}\big(1, D(c, G(c, z))\big) + 100 \cdot \mathrm{mean}\big[(y - G(c, z))^2\big]$$
 
-**Training:** Adam (learning rate $10^{-3}$, $\beta_1 = 0.5$); 60 epochs; batch size 128; best checkpoint on the validation RMSE in °C. **Inference** is deterministic, with $z = 0$.
+**Training:** Adam (learning rate $10^{-3}$, $\beta_1 = 0.5$); 60 epochs; batch size 128; best checkpoint on the validation RMSE. **Inference** is deterministic, with $z = 0$.
 
 ### 5.7 Shared models as forecasters
 
@@ -273,7 +273,7 @@ The generator's temperature values for the 7 masked days are the forecast. The t
 | Re-masking rate | – | 0.20 | – | – |
 | Feature weights | – | temp 2.25, others 0.75 | – | – |
 | Noise dimension | – | – | – | 16 |
-| Checkpoint criterion | val. temperature imputation RMSE | val. temperature imputation RMSE | val. temperature imputation RMSE | val. forecast RMSE (°C) |
+| Checkpoint criterion | val. temperature imputation RMSE | val. temperature imputation RMSE | val. temperature imputation RMSE | val. forecast RMSE |
 | Seed | 42 | 42 | 42 | 42 |
 
 ---
@@ -286,17 +286,17 @@ Computed on the test blocks, **only at the removed positions** ($m = 1$), in sca
 
 $$\mathrm{RMSE}_{T} = \sqrt{\frac{\sum m_{T}\,(\hat{x}_{T} - x_{T})^2}{\sum m_{T}}}, \qquad \mathrm{MAE}_{T} = \frac{\sum m_{T}\,\lvert \hat{x}_{T} - x_{T} \rvert}{\sum m_{T}}$$
 
-`impute_rmse_allfeat` and `impute_mae_allfeat` are the same quantities summed over all six variables. The shared models are scored by `evaluate`, the Simple GAN by `impute_metrics`, with the same definitions. The Simple GAN also reports the temperature errors in °C (`impute_rmse_temp_degC`, `impute_mae_temp_degC`), which are the scaled values multiplied by 2.759.
+`impute_rmse_allfeat` and `impute_mae_allfeat` are the same quantities summed over all six variables. The shared models are scored by `evaluate`, the Simple GAN by `impute_metrics`, with the same definitions.
 
 ### 6.2 Forecasting metrics
 
-Computed by `fc_metrics` over all $N = 596$ test windows and $H = 7$ lead days, after converting back to °C. `RMSE_degC`, `MAE_degC` and `R2` are
+Computed by `fc_metrics` over all $N = 596$ test windows and $H = 7$ lead days, after converting the forecasts and true values back to temperature. `RMSE`, `MAE` and `R2` are
 
 $$\mathrm{RMSE} = \sqrt{\frac{1}{NH}\sum_{i=1}^{N}\sum_{h=1}^{H}(\hat{y}_{i,h} - y_{i,h})^2}, \qquad \mathrm{MAE} = \frac{1}{NH}\sum_{i,h}\lvert \hat{y}_{i,h} - y_{i,h} \rvert, \qquad R^2 = 1 - \frac{\sum_{i,h}(\hat{y}_{i,h} - y_{i,h})^2}{\sum_{i,h}(y_{i,h} - \bar{y})^2}$$
 
 where $\bar{y}$ is the mean of all true values.
 
-`RMSE_scaled` and `MAE_scaled` are the °C values divided by 2.759. The **RMSE by lead day** is computed for each $h$ separately over the $N$ windows.
+`RMSE_scaled` and `MAE_scaled` are `RMSE` and `MAE` divided by the training standard deviation of temperature (2.759). The **RMSE by lead day** is computed for each $h$ separately over the $N$ windows.
 
 ### 6.3 Efficiency
 
@@ -316,55 +316,56 @@ In the original run: $0.3268 \times \sqrt{702 / 4200} = 0.1336$, the reported GA
 
 ## 7. Results
 
-One run with seed 42, on a 4-core CPU with TensorFlow 2.21.0 (notebook runtime 24.5 minutes). Best values in bold.
+One run with seed 42, on a 4-core CPU with TensorFlow 2.21.0 (notebook runtime 23.1 minutes). Best values in bold.
 
 ### 7.1 Imputation (test blocks, removed positions, scaled units)
 
 | Model | `impute_rmse_temp` | `impute_mae_temp` | `impute_rmse_allfeat` | `impute_mae_allfeat` |
 |---|---|---|---|---|
-| Shared GAN | 0.3107 | 0.2397 | 0.8467 | 0.4416 |
-| Shared WGAN-GP | **0.2896** | **0.2218** | **0.7865** | **0.3838** |
-| Simple GAN (imputation only) | 0.3255 | 0.2461 | 0.8568 | 0.4449 |
+| Shared GAN | 0.3180 | 0.2451 | 0.8350 | 0.4357 |
+| Shared WGAN-GP | **0.2797** | **0.2195** | **0.7847** | **0.3781** |
+| Simple GAN (imputation only) | 0.3180 | 0.2451 | 0.8350 | 0.4357 |
 
 ### 7.2 Forecasting (596 test windows, 7 days)
 
-| Model | `RMSE_degC` | `MAE_degC` | `R2` | `RMSE_scaled` | `MAE_scaled` |
+| Model | `RMSE` | `MAE` | `R2` | `RMSE_scaled` | `MAE_scaled` |
 |---|---|---|---|---|---|
-| Shared GAN | 1.5395 | 1.2129 | 0.6063 | 0.5580 | 0.4396 |
-| Shared WGAN-GP | 1.2309 | 0.9783 | 0.7484 | 0.4461 | 0.3546 |
-| Simple GAN (forecasting only) | **0.9539** | **0.7196** | **0.8489** | **0.3457** | **0.2608** |
+| Shared GAN | 1.7635 | 1.4335 | 0.4834 | 0.6392 | 0.5195 |
+| Shared WGAN-GP | 1.3200 | 1.0537 | 0.7106 | 0.4784 | 0.3819 |
+| Simple GAN (forecasting only) | **0.9348** | **0.7026** | **0.8548** | **0.3388** | **0.2546** |
 
-RMSE by lead day (°C):
+RMSE by lead day:
 
 | Lead day | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|
-| Shared GAN | 0.945 | 1.175 | 1.382 | 1.547 | 1.701 | 1.827 | 1.945 |
-| Shared WGAN-GP | 0.960 | 1.094 | 1.185 | 1.252 | 1.315 | 1.362 | 1.390 |
-| Simple GAN | **0.599** | **0.757** | **0.861** | **1.007** | **1.073** | **1.138** | **1.113** |
+| Shared GAN | 1.133 | 1.437 | 1.691 | 1.857 | 1.970 | 2.008 | 2.050 |
+| Shared WGAN-GP | 0.948 | 1.116 | 1.256 | 1.363 | 1.453 | 1.494 | 1.507 |
+| Simple GAN | **0.607** | **0.788** | **0.844** | **0.979** | **1.043** | **1.096** | **1.081** |
 
 ### 7.3 Parameters and training time
 
 | Approach | Generators for both tasks | Generator parameters | Parameters incl. discriminator/critic | Training time (min) |
 |---|---|---|---|---|
-| Shared GAN | 1 | **146,886** | **175,260** | **3.1** |
-| Shared WGAN-GP | 1 | **146,886** | 193,639 | 8.1 |
-| Simple GAN | 2 | 203,725 | 256,964 | 12.0 (2.6 imputation + 9.4 forecasting) |
+| Shared GAN | 1 | **146,886** | **175,260** | **2.9** |
+| Shared WGAN-GP | 1 | **146,886** | 193,639 | 7.8 |
+| Simple GAN | 2 | 203,725 | 256,964 | 11.9 (2.6 imputation + 9.3 forecasting) |
 
 ### 7.4 Training behaviour (validation)
 
 | Model | Best validation value (restored) | Value at the last epoch |
 |---|---|---|
-| Shared GAN | 0.3510 at epoch 10 (temperature imputation RMSE, scaled) | 0.7335 at epoch 99 |
-| Shared WGAN-GP | 0.3036 (temperature imputation RMSE, scaled) | 0.3092 at epoch 99; still decreasing at the last epoch |
-| Simple GAN, imputation | 0.3574 (temperature imputation RMSE, scaled) | 0.7120 at epoch 99 |
-| Simple GAN, forecasting | 0.961 °C (forecast RMSE) | 1.271 °C at epoch 59 |
+| Shared GAN | 0.3577 at epoch 10 (temperature imputation RMSE, scaled) | 0.6660 at epoch 99 |
+| Shared WGAN-GP | 0.2959 (temperature imputation RMSE, scaled) | 0.3125 at epoch 99 |
+| Simple GAN, imputation | 0.3577 at epoch 10 (temperature imputation RMSE, scaled) | 0.6864 at epoch 99 |
+| Simple GAN, forecasting | 0.9610 (forecast RMSE) | 1.1980 at epoch 59 |
 
 ### 7.5 Summary with respect to the claim
 
-* **Imputation:** the Shared WGAN-GP has the lowest error of the three models on all four metrics. Its temperature RMSE is 11 % lower than the Simple GAN's (0.2896 vs. 0.3255) and 7 % lower than the Shared GAN's (0.3107).
-* **Forecasting:** the Simple GAN forecaster, trained for this task, has the lowest error. The RMSE of the Shared WGAN-GP is 29 % higher (1.231 vs. 0.954 °C), and that of the Shared GAN 61 % higher (1.540 °C).
-* **Cost:** each shared model handles both tasks with one generator of 146,886 parameters, 28 % fewer than the two Simple GAN generators (203,725), and with one training run: 3.1 min (Shared GAN) and 8.1 min (Shared WGAN-GP), against 12.0 min for the two Simple GAN networks on the same CPU.
-* **Overall:** in this run the shared architecture needs fewer parameters and less training time for the two tasks, and the Shared WGAN-GP is the most accurate imputer. For forecasting, the dedicated Simple GAN forecaster is more accurate than both shared models.
+* **Imputation:** the Shared WGAN-GP has the lowest error of the three models on all four metrics. Its temperature RMSE is 12 % lower (0.2797 vs. 0.3180) than that of the Shared GAN and the Simple GAN, which give identical imputation results to four decimals: they are the same network with the same objective, settings and seed.
+* **Forecasting:** the Simple GAN forecaster, trained for this task, has the lowest error. The RMSE of the Shared WGAN-GP is 41 % higher (1.320 vs. 0.935), and that of the Shared GAN 89 % higher (1.764).
+* **Cost:** each shared model handles both tasks with one generator of 146,886 parameters, 28 % fewer than the two generators of the Simple GAN approach (203,725), and with one training run: 2.9 min (Shared GAN) and 7.8 min (Shared WGAN-GP), against 11.9 min for the two Simple GAN networks on the same CPU.
+* **Training:** the validation error of the Shared WGAN-GP reached its lowest value in the last ten of its 100 epochs (Section 6.5 of the notebook).
+* **The claim:** in this run, the shared architecture needs fewer parameters and less training time for the two tasks, and the Shared WGAN-GP is the most accurate imputer. For forecasting, the dedicated Simple GAN forecaster is more accurate than both shared models.
 
 ### 7.6 Figures
 
@@ -429,7 +430,7 @@ All files are written to `outputs/` by the notebook; the files of the run descri
 | `shared_models_training_curves.png` | 6.5 | validation RMSE and generator loss per epoch |
 | `shared_models_imputation_accuracy.png` | 6.5 | test imputation RMSE and MAE (temperature) |
 | `shared_models_imputation_example.png` | 6.5 | example test block |
-| `gan_imputation_only_metrics.csv` | 7.1 | imputation metrics of the Simple GAN, including °C values |
+| `gan_imputation_only_metrics.csv` | 7.1 | imputation metrics of the Simple GAN |
 | `gan_imputation_curves.png`, `gan_imputation_example.png` | 7.1 | training curves and example block of the Simple GAN imputation network |
 | `gan_forecasting_only_metrics.csv` | 7.2 | forecasting metrics of the Simple GAN |
 | `gan_forecasting_curves.png`, `gan_forecasting_example.png` | 7.2 | training curves, RMSE by lead day and example forecast of the Simple GAN |
@@ -454,9 +455,9 @@ pip install -r requirements.txt
 jupyter lab Adversarial_Forecasting_GAN.ipynb
 ```
 
-**Runtime.** The run described here took 24.5 minutes on a 4-core CPU with TensorFlow 2.21.0. Training took 3.1 min (Shared GAN), 8.1 min (Shared WGAN-GP), 2.6 min (Simple GAN, imputation) and 9.4 min (Simple GAN, forecasting).
+**Runtime.** The run described here took 23.1 minutes on a 4-core CPU with TensorFlow 2.21.0. Training took 2.9 min (Shared GAN), 7.8 min (Shared WGAN-GP), 2.6 min (Simple GAN, imputation) and 9.3 min (Simple GAN, forecasting).
 
-**Run-to-run variation.** Each model is trained once. A second run, especially on other hardware, gives somewhat different numbers. For example, a run of the original notebook in Google Colab gave `impute_rmse_temp` = 0.3268 (Shared GAN), 0.2765 (Shared WGAN-GP) and 0.3554 (Simple GAN), against 0.3107, 0.2896 and 0.3255 in the run described here. Its forecasting result (0.9191 °C) used the earlier row-based split, so it is not directly comparable.
+**Reproducibility.** Each model is trained once, with seed 42. The notebook seeds with `tf.keras.utils.set_random_seed`, which fixes the weight initialisation and the random draws during training, so a re-run on the same machine gives the same numbers. GPU kernels are not bit-for-bit deterministic, so a run on other hardware can give slightly different numbers. The original notebook seeded only with `tf.random.set_seed`, which does not fix the Keras weight initialisation: two runs of that code on the same machine reached a best validation RMSE of 0.3510 and 0.3631 for the Shared GAN, and a run in Google Colab gave `impute_rmse_temp` = 0.3268 (Shared GAN), 0.2765 (Shared WGAN-GP) and 0.3554 (Simple GAN).
 
 ---
 
@@ -471,17 +472,19 @@ The notebook is based on `Untitled4.ipynb`. The model and training code is uncha
 5. **No baseline.** The persistence baseline was removed from the forecasting experiment, so that only GAN variants are compared.
 6. **New sections.** Training times are recorded (`train_time`), and three sections were added: the shared models as forecasters, the comparison of accuracy, parameters and training time, and the temporal maps.
 7. **Comments.** The docstring of the model cell now states that the WGAN-GP also differs in its re-masking and feature-weighted reconstruction, and an outdated comment about `train_wgan_simple` was removed.
+8. **Metric names.** `RMSE_degC` and `MAE_degC` were renamed `RMSE` and `MAE`; `impute_rmse_temp_degC` and `impute_mae_temp_degC` were removed; and the unit was removed from the error labels.
+9. **Seeding.** `tf.random.set_seed(...)` was replaced by `tf.keras.utils.set_random_seed(...)` in `train_gan`, `train_wgan` and the Simple GAN setup cell. `tf.random.set_seed` alone does not fix the Keras weight initialisation, so repeated runs of the original code gave different results.
 
 ---
 
 ## 12. Notes and assumptions
 
-* **Single run.** Every model was trained once, with seed 42. GPU kernels are not bit-for-bit deterministic.
+* **Single run.** Every model was trained once, with seed 42. A re-run on the same machine reproduces the results; GPU kernels are not bit-for-bit deterministic, so other hardware can give slightly different numbers.
 * **Complete training data for the critic.** The WGAN-GP critic uses complete training blocks, including the removed values, as real examples. This assumes that complete historical data are available for training.
-* **Shared GAN and Simple imputation GAN.** They use the same objective, architecture and settings. They differ only in the LSTM kernel implementation and in their random initialisation.
+* **Shared GAN and Simple imputation GAN.** They use the same objective, architecture, settings and seed, so they start from the same weights; they differ only in the LSTM kernel implementation. In the run described here, their imputation results are identical to four decimals.
 * **Context length in forecasting.** The shared generators forecast from 23 days of context, the Simple GAN forecaster from 30 days.
 * **Comparison scope.** Only GAN variants are compared; no non-GAN baseline is included.
-* **Units.** Imputation metrics are in scaled units; temperature errors convert to °C by multiplying by 2.759. Forecasting metrics are given in °C and in scaled units.
+* **Units.** Imputation metrics are in scaled units. Forecasting metrics are given unscaled (`RMSE`, `MAE`) and scaled (`RMSE_scaled`, `MAE_scaled`).
 
 ---
 
