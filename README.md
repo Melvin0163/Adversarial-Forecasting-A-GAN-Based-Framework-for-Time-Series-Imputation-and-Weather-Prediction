@@ -9,6 +9,8 @@ GAN variants for two tasks on daily weather data:
 
 The study tests the claim that a **unified, shared GAN architecture** (one generator for both tasks) is an optimized way to handle both, compared with a **Simple GAN** approach that trains a separate GAN for each task. "Optimized" is assessed on accuracy, number of parameters and training time. The data are 76 years (1950–2025) of ERA5-Land daily reanalysis for Chennai, India. The whole study is one notebook: [`Adversarial_Forecasting_GAN.ipynb`](Adversarial_Forecasting_GAN.ipynb).
 
+A complete walkthrough of the project, covering the data, pipeline, models, metrics, results and every notebook section, is in [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md).
+
 ## Models
 
 | Model | Generator | Adversary | Trained on | Evaluated on |
@@ -119,6 +121,7 @@ Running the notebook writes these files to `outputs/`; the files of the run show
 
 ```
 ├── Adversarial_Forecasting_GAN.ipynb   # the complete, executed study
+├── PROJECT_GUIDE.md                    # complete walkthrough of the project
 ├── data/
 │   └── era5_chennai_1950_2025.csv      # ERA5-Land extract used in the study
 ├── outputs/                            # tables and figures of the run shown
