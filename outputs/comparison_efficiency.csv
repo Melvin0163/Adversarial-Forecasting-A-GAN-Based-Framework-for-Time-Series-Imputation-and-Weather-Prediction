@@ -1,0 +1,4 @@
+,generators for both tasks,generator parameters,parameters incl. discriminator/critic,training time (min)
+Shared GAN,1,146886,175260,3.081964699427287
+Shared WGAN-GP,1,146886,193639,8.13955472310384
+Simple GAN,2,203725,256964,12.01292824347814

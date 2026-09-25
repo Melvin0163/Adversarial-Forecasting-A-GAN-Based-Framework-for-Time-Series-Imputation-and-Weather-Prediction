@@ -1,0 +1,3 @@
+,impute_rmse_temp,impute_mae_temp,impute_rmse_allfeat,impute_mae_allfeat
+GAN,0.31070355,0.2397331,0.84673965,0.4415598
+WGAN-GP,0.28960294,0.22177725,0.7864722,0.38378793

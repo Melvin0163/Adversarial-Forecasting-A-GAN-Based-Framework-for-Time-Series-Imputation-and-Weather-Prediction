@@ -2,26 +2,26 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Melvin0163/Adversarial-Forecasting-A-GAN-Based-Framework-for-Time-Series-Imputation-and-Weather-Prediction/blob/main/Adversarial_Forecasting_GAN.ipynb)
 
-Generative adversarial networks (GANs) for two related problems in daily weather records:
+GAN variants for two tasks on daily weather data:
 
-- **Imputation**: reconstructing values missing from a multivariate record, both isolated days and multi-day gaps.
-- **Forecasting**: predicting the next 7 days of air temperature from the recent past.
+- **Imputation:** filling values missing from a six-variable daily record.
+- **Forecasting:** predicting the next 7 days of air temperature.
 
-The study uses 76 years (1950–2025) of ERA5-Land daily reanalysis for Chennai, India. Missing data are simulated realistically, and every model is evaluated on a held-out *future* period against simple baselines. The whole study is one end-to-end notebook: [`Adversarial_Forecasting_GAN.ipynb`](Adversarial_Forecasting_GAN.ipynb).
+The study tests the claim that a **unified, shared GAN architecture** (one generator for both tasks) is an optimized way to handle both, compared with a **Simple GAN** approach that trains a separate GAN for each task. "Optimized" is assessed on accuracy, number of parameters and training time. The data are 76 years (1950–2025) of ERA5-Land daily reanalysis for Chennai, India. The whole study is one notebook: [`Adversarial_Forecasting_GAN.ipynb`](Adversarial_Forecasting_GAN.ipynb).
 
 ## Models
 
-| Model | Generator | Adversary | Tasks |
-|---|---|---|---|
-| **A. Shared GAN** | Shared BiLSTM masked-sequence generator | GAIN-style point-wise discriminator (binary cross-entropy) | imputation; forecasting by masking the final 7 days |
-| **B. Shared WGAN-GP** | Same shared generator architecture | Block-level Wasserstein critic with gradient penalty | imputation; forecasting by masking the final 7 days |
-| **C. Simple GAN** | One network per task | C1: GAIN-style discriminator · C2: conditional discriminator | C1 imputation only · C2 forecasting only |
+| Model | Generator | Adversary | Trained on | Evaluated on |
+|---|---|---|---|---|
+| **Shared GAN** | BiLSTM generator over 30-day blocks (shared architecture) | GAIN-style point-wise discriminator (binary cross-entropy) | imputation | imputation and forecasting |
+| **Shared WGAN-GP** | same generator architecture | block-level Wasserstein critic with gradient penalty | imputation, with re-masking of observed values | imputation and forecasting |
+| **Simple GAN** | one generator per task | GAIN-style discriminator (imputation); conditional discriminator (forecasting) | each task separately | the task it was trained for |
 
-"Shared" means two things. Models A and B use the same generator architecture, so the comparison between them isolates the adversarial objective (binary cross-entropy vs. Wasserstein distance). And each trained generator serves both tasks: it fills interior gaps, and it forecasts when the last days of a window are masked. The Simple GAN is the task-specific counterpart.
+Only GAN variants are compared; no non-GAN baseline is included.
 
 ## Data
 
-Daily aggregates from **ERA5-Land** (`ECMWF/ERA5_LAND/DAILY_AGGR`), extracted with Google Earth Engine at 80.23° E, 13.08° N (Chennai), 1950-01-02 to 2025-12-30 (27,757 days). The extract is included in [`data/era5_chennai_1950_2025.csv`](data/era5_chennai_1950_2025.csv).
+Daily aggregates from **ERA5-Land** (`ECMWF/ERA5_LAND/DAILY_AGGR`), extracted with Google Earth Engine at 80.23° E, 13.08° N (Chennai), from 1950-01-02 to 2025-12-30 (27,757 days). The extract is included in [`data/era5_chennai_1950_2025.csv`](data/era5_chennai_1950_2025.csv), and the notebook contains the extraction code (Section 1).
 
 | Column | Unit | Daily statistic |
 |---|---|---|
@@ -31,58 +31,64 @@ Daily aggregates from **ERA5-Land** (`ECMWF/ERA5_LAND/DAILY_AGGR`), extracted wi
 | `dewpoint_temperature_2m` | K | mean |
 | `u_component_of_wind_10m`, `v_component_of_wind_10m` | m s⁻¹ | mean |
 
-The notebook also contains the Earth Engine extraction code (Section 1), so the extract can be regenerated with a Google Cloud project that has the Earth Engine API enabled.
+## Experimental setup
 
-## Experimental protocol
-
-1. **Chronological split.** The series is cut into non-overlapping 30-day blocks: 70 % for training (1950–2003), 15 % for validation (2003–2014) and 15 % for the held-out test period (2014–2025).
-2. **Scaling.** Each variable is z-scored with training-period statistics only.
-3. **Synthetic missingness** (fixed seed, identical for every model). For each variable, 10 % of days are removed at random and about 10 % more as contiguous 3–10-day gaps, about 18.5 % of all values in total. Removed values are kept as ground truth.
-4. **Model input.** Zero-filled values plus a missing-value indicator for each 30-day block (30 days × 12 channels).
-5. **Training.** Each model keeps the weights of its best validation epoch; the test period is never used for any choice.
-6. **Evaluation**, averaged over 3 model seeds (mean ± std):
-   - *Imputation:* RMSE, MAE and R² for temperature in °C, and all-variable errors, measured only at the removed entries. Baseline: linear interpolation. Errors are also broken down by gap length.
-   - *Forecasting:* identical 7-day targets for every model. RMSE, MAE, R², skill against persistence, and error by lead day. The evaluation is repeated with gaps left in the input history.
+1. **Chronological split** of the series into non-overlapping 30-day blocks: 647 for training (1950–2003), 138 for validation (2003–2014) and 140 for testing (2014–2025). The forecasting experiment uses the same period boundaries.
+2. **Scaling:** each variable is z-scored with training-period statistics only.
+3. **Missingness** (seed 42, identical for every model): for each variable, 10 % of the days are removed at random and about 10 % more as contiguous runs of 3–10 days, 18.5 % of all values in total. The removed values are kept as ground truth.
+4. **Model input** for the imputation models: zero-filled values plus a missing-value indicator for each 30-day block (30 days × 12 channels).
+5. **Training:** each model keeps the weights of its best validation epoch. Every model is trained once, with seed 42.
+6. **Evaluation** on the test period:
+   - *Imputation:* RMSE and MAE at the removed positions only, for temperature and for all six variables, in scaled units.
+   - *Forecasting:* 7-day temperature forecasts for 596 test windows; RMSE and MAE (°C and scaled), R², and RMSE by lead day. The shared generators forecast by filling the last 7 days of a 30-day block whose first 23 days are observed.
+   - *Efficiency:* trainable parameters and training time.
 
 ## Results
 
-Held-out test period 2014-06-25 to 2025-12-23, mean ± standard deviation over 3 seeds. The numbers come from the executed notebook in this repository, which also saves every table and figure in [`outputs/`](outputs/). The run used a 4-core CPU with TensorFlow 2.21 and took 55 minutes; two complete runs gave identical numbers. On a GPU, results can differ slightly.
+The numbers below are those of the run shown in the notebook: one run with seed 42, on a CPU with TensorFlow 2.21. The test period is 2014–2025: 140 blocks for imputation and 596 windows for forecasting. Best values are in bold.
 
-**Imputation** of the 702 removed temperature values:
+**Imputation** (removed test positions, scaled units, lower is better)
 
-| Model | RMSE (°C) ↓ | MAE (°C) ↓ | R² ↑ |
-|---|---|---|---|
-| Shared GAN (A) | 0.954 ± 0.066 | 0.729 ± 0.045 | 0.848 ± 0.021 |
-| Shared WGAN-GP (B) | 0.969 ± 0.058 | 0.745 ± 0.041 | 0.843 ± 0.019 |
-| Simple GAN (C1) | 0.904 ± 0.026 | 0.694 ± 0.015 | 0.864 ± 0.008 |
-| Linear interpolation | **0.672** | **0.488** | **0.925** |
-
-**7-day temperature forecasting** on 596 test windows. Skill is 1 − RMSE / RMSE of persistence. With gaps in the input history, the Simple GAN first fills them with C1 and then forecasts with C2.
-
-| Model | RMSE (°C) ↓, complete history | Skill ↑ | RMSE (°C) ↓, history with gaps | Skill ↑ |
+| Model | `impute_rmse_temp` | `impute_mae_temp` | `impute_rmse_allfeat` | `impute_mae_allfeat` |
 |---|---|---|---|---|
-| Persistence | 1.124 | 0 | 1.179 | 0 |
-| Simple GAN (C2) | **0.928 ± 0.011** | **0.174 ± 0.010** | **0.963 ± 0.016** | **0.183 ± 0.013** |
-| Shared GAN (A) | 1.735 ± 0.114 | −0.543 ± 0.102 | 1.820 ± 0.099 | −0.544 ± 0.084 |
-| Shared WGAN-GP (B) | 1.757 ± 0.233 | −0.563 ± 0.207 | 1.836 ± 0.231 | −0.557 ± 0.196 |
+| Shared GAN | 0.3107 | 0.2397 | 0.8467 | 0.4416 |
+| Shared WGAN-GP | **0.2896** | **0.2218** | **0.7865** | **0.3838** |
+| Simple GAN (imputation only) | 0.3255 | 0.2461 | 0.8568 | 0.4449 |
 
-![Forecast RMSE by lead day for persistence and the three GAN forecasters, with a complete and a gappy input history](outputs/figures/10_forecast_rmse_by_lead_day.png)
+**7-day temperature forecasting** (596 test windows)
 
-**Key findings**
+| Model | `RMSE_degC` | `MAE_degC` | `R2` | `RMSE_scaled` | `MAE_scaled` |
+|---|---|---|---|---|---|
+| Shared GAN | 1.5395 | 1.2129 | 0.6063 | 0.5580 | 0.4396 |
+| Shared WGAN-GP | 1.2309 | 0.9783 | 0.7484 | 0.4461 | 0.3546 |
+| Simple GAN (forecasting only) | **0.9539** | **0.7196** | **0.8489** | **0.3457** | **0.2608** |
 
-1. **The conditional forecasting GAN (C2) beats persistence at every lead day**, from 0.60 vs. 0.64 °C on day 1 to 1.07 vs. 1.35 °C on day 7. It keeps its skill when the input history has gaps.
-2. **No GAN imputer beats linear interpolation overall.** C1 is marginally ahead only on 2–3-day gaps (0.82 vs. 0.85 °C). The GAIN-style discriminator sees the full observation mask, and its loss falls from about 0.7 to 0.002, consistent with it reading the mask instead of the values. From then on nothing trains the generator on the missing entries: validation error is lowest after 6–14 epochs and then rises, so checkpoint selection matters.
-3. **Cross-entropy vs. Wasserstein: same accuracy, different training.** The WGAN-GP matches the GAN within one seed standard deviation and trains steadily. Like the GAN, it has no loss term that compares the filled-in values with the true ones.
-4. **The shared generators do not forecast** (skill about −0.55). Imputation training alone does not transfer to filling the last 7 days of a window.
-5. **Next steps:** GAIN's hint mechanism, masked-reconstruction training (hide some observed values and reconstruct them), and trailing gaps in the training masks of the shared generators.
+RMSE by lead day, from day 1 to day 7: Simple GAN 0.60 to 1.11 °C, Shared WGAN-GP 0.96 to 1.39 °C, Shared GAN 0.95 to 1.95 °C.
 
-![Validation imputation RMSE per epoch for the three GAN imputers](outputs/figures/04_imputer_validation_curves.png)
+**Parameters and training time**
 
-The notebook discusses these results in Sections 10 and 11.
+| Approach | Generators for both tasks | Generator parameters | Parameters incl. discriminator/critic | Training time (min) |
+|---|---|---|---|---|
+| Shared GAN | 1 | **146,886** | **175,260** | **3.1** |
+| Shared WGAN-GP | 1 | **146,886** | 193,639 | 8.1 |
+| Simple GAN | 2 | 203,725 | 256,964 | 12.0 (2.6 imputation + 9.4 forecasting) |
+
+**Summary**
+
+* **Imputation:** the Shared WGAN-GP has the lowest error of the three models on all four metrics. Its temperature RMSE is 11 % lower than the Simple GAN's (0.2896 vs. 0.3255) and 7 % lower than the Shared GAN's (0.3107).
+* **Forecasting:** the Simple GAN forecaster, trained for this task, has the lowest error. The RMSE of the Shared WGAN-GP is 29 % higher (1.231 vs. 0.954 °C), and that of the Shared GAN 61 % higher (1.540 °C).
+* **Cost:** each shared model handles both tasks with one generator of 146,886 parameters, 28 % fewer than the two generators of the Simple GAN approach (203,725), and with one training run: 3.1 min (Shared GAN) and 8.1 min (Shared WGAN-GP), against 12.0 min for the two Simple GAN networks on the same CPU.
+* **Training:** the validation error of the Shared WGAN-GP was still decreasing at the last of its 100 epochs.
+* **The claim:** in this run, the shared architecture needs fewer parameters and less training time for the two tasks, and the Shared WGAN-GP is the most accurate imputer. For forecasting, the dedicated Simple GAN forecaster is more accurate than both shared models.
+
+![Test forecast RMSE by lead day for the three GAN models](outputs/forecast_rmse_by_lead_day.png)
+
+![Temporal map of the imputation error on the removed test days](outputs/temporal_map_imputation_error.png)
+
 
 ## Running the notebook
 
-**Google Colab (recommended).** Click the badge above, optionally choose *Runtime → Change runtime type → T4 GPU*, then *Runtime → Run all*. The data are downloaded from this repository automatically.
+**Google Colab.** Click the badge above, then *Runtime → Run all*. The data are downloaded from this repository automatically.
 
 **Locally** (Python 3.10+):
 
@@ -93,54 +99,42 @@ pip install -r requirements.txt
 jupyter lab Adversarial_Forecasting_GAN.ipynb
 ```
 
-A GPU is optional: the published run (3 seeds) took 55 minutes on a 4-core CPU. To check that everything runs, set `QUICK_TEST = True` in Section 0 (2 epochs, 1 seed, a few minutes). All settings (seeds, split, missingness, hyperparameters) live in the configuration cell of Section 0.
+The run shown in the notebook took 25 minutes on a 4-core CPU with TensorFlow 2.21; a GPU runtime is optional.
 
 ## Outputs
 
-Running the notebook writes everything to `outputs/`. The outputs of the published run are included in this repository, except the model weights.
+Running the notebook writes these files to `outputs/`; the files of the run shown are included in this repository.
 
-| Path | Content |
+| File | Content |
 |---|---|
-| `results_summary.md` | headline results and the final tables in Markdown |
-| `imputation_metrics_*.csv`, `imputation_temp_rmse_by_gap_length.csv` | imputation scores (per seed and summarised) |
-| `imputation_calibration.csv` | bias, spread and slope of the imputed temperatures |
-| `forecast_metrics_*.csv`, `forecast_rmse_by_lead_day.csv` | forecasting scores (per seed and summarised) |
-| `run_summary.json` | configuration, selected epochs, runtimes, all scores and package versions |
-| `figures/` | all figures at 200 dpi |
-| `models/` | trained generator weights (not tracked by git) |
+| `model_comparison_metrics.csv` | imputation metrics of the Shared GAN and the Shared WGAN-GP |
+| `gan_imputation_only_metrics.csv` | imputation metrics of the Simple GAN |
+| `gan_forecasting_only_metrics.csv` | forecasting metrics of the Simple GAN |
+| `forecast_comparison_metrics.csv` | forecasting metrics of all three models |
+| `comparison_accuracy.csv`, `comparison_efficiency.csv` | the comparison tables of Section 9 |
+| `run_summary.json` | data summary, hyperparameters and metrics of the shared models |
+| `*.png` | all figures, including the temporal maps of the imputed temperatures |
 
 ## Repository structure
 
 ```
-├── Adversarial_Forecasting_GAN.ipynb   # complete study, executed: data → models → evaluation → discussion
+├── Adversarial_Forecasting_GAN.ipynb   # the complete, executed study
 ├── data/
 │   └── era5_chennai_1950_2025.csv      # ERA5-Land extract used in the study
-├── outputs/                            # tables, figures and run summary of the published run
-│   └── figures/
+├── outputs/                            # tables and figures of the run shown
 ├── requirements.txt
 └── README.md
 ```
-
-## Limitations
-
-The notebook discusses these in detail (Section 11). In brief:
-
-- The GAIN-style discriminators see the full observation mask. They saturate and stop guiding the generator on the missing entries, which leaves checkpoint selection to do much of the work.
-- The shared generators are trained only on imputation gaps, so their forecasting scores measure transfer rather than dedicated forecasting skill. Here the transfer fails.
-- Missingness is synthetic (random and block-wise). The results come from a single site, with point-error metrics only.
 
 ## References
 
 - Muñoz-Sabater, J. et al. (2021). ERA5-Land: a state-of-the-art global reanalysis dataset for land applications. *Earth System Science Data*, 13, 4349–4383.
 - Gorelick, N. et al. (2017). Google Earth Engine: planetary-scale geospatial analysis for everyone. *Remote Sensing of Environment*, 202, 18–27.
-- Goodfellow, I. et al. (2014). Generative adversarial nets. *NeurIPS*, 27.
+- Goodfellow, I. et al. (2014). Generative adversarial nets. *Advances in Neural Information Processing Systems*, 27.
 - Yoon, J., Jordon, J. & van der Schaar, M. (2018). GAIN: missing data imputation using generative adversarial nets. *ICML*, PMLR 80, 5689–5698.
 - Arjovsky, M., Chintala, S. & Bottou, L. (2017). Wasserstein generative adversarial networks. *ICML*, PMLR 70, 214–223.
-- Gulrajani, I. et al. (2017). Improved training of Wasserstein GANs. *NeurIPS*, 30.
+- Gulrajani, I. et al. (2017). Improved training of Wasserstein GANs. *Advances in Neural Information Processing Systems*, 30.
 - Mirza, M. & Osindero, S. (2014). Conditional generative adversarial nets. arXiv:1411.1784.
-- Du, W., Côté, D. & Liu, Y. (2023). SAITS: self-attention-based imputation for time series. *Expert Systems with Applications*, 219, 119619.
-
-The full reference list is in the notebook.
 
 ## Data licence and attribution
 
