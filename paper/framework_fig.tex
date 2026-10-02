@@ -1,0 +1,37 @@
+% Framework diagram shared by main.tex and snippet.tex (requires tikz with
+% the positioning, arrows.meta and fit libraries).
+\begin{tikzpicture}[
+  font=\scriptsize,
+  >={Stealth[length=1.6mm]},
+  node distance=3.5mm and 4mm,
+  box/.style={draw, rounded corners=1.5pt, align=center, minimum height=6.5mm, inner sep=2pt, fill=white},
+  inp/.style={box, fill=gray!10, text width=17mm},
+  net/.style={box, fill=blue!8, text width=19mm},
+  loss/.style={box, fill=orange!12, text width=19mm}
+]
+  % Inputs
+  \node[inp] (c)   {ENSO state $c$\\(lagged ONI)};
+  \node[inp, below=of c] (x)   {Masked window\\$x \odot (1-m)$};
+  \node[inp, below=of x] (m)   {Mask $m$\\(interior / trailing)};
+
+  % Generator
+  \node[net, right=6mm of x, text width=21mm, minimum height=21mm] (G)
+    {\textbf{Generator $G$}\\[1pt] Conv1D $\times 2$\\ BiGRU\\ $1{\times}1$ Conv};
+
+  % Output
+  \node[box, right=of G, text width=14mm] (yhat) {$\hat{y}$\\(imputed /\\forecast)};
+
+  % Critic and loss
+  \node[net, above right=2mm and 5mm of yhat] (D) {\textbf{Critic $D$}\\$D(\hat{y}, c)$\\WGAN-GP};
+  \node[loss, below right=2mm and 5mm of yhat] (L) {\textbf{Extreme-aware}\\$\mathcal{L}_{\mathrm{recon}}$, weights $w_t$};
+
+  % Arrows
+  \draw[->] (c.east) -- ++(2mm,0) |- ([yshift=5mm]G.west);
+  \draw[->] (x.east) -- (G.west);
+  \draw[->] (m.east) -- ++(2mm,0) |- ([yshift=-5mm]G.west);
+  \draw[->] (G) -- (yhat);
+  \draw[->] (yhat.north) |- (D.west);
+  \draw[->] (yhat.south) |- (L.west);
+  \coordinate (top) at ([yshift=3mm]D.north);
+  \draw[->, dashed] (c.north) |- node[pos=0.75, above, font=\tiny] {ENSO condition} (top) -- (D.north);
+\end{tikzpicture}
