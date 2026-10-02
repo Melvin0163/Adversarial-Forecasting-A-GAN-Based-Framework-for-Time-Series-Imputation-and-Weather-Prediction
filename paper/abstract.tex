@@ -1,0 +1,26 @@
+\documentclass[conference,a4paper]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\begin{document}
+
+\title{Adversarial Forecasting: A GAN-Based Framework for Heatwave-Oriented Temperature Imputation and Forecasting over Chennai}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization} \\
+\textit{name of organization}\\
+City, Country \\
+email address or ORCID}
+}
+
+\maketitle
+
+\begin{abstract}
+Reliable, gap-free temperature records are essential for analysing and anticipating heatwaves, yet long climate series frequently contain missing observations. This paper presents a generative adversarial network (GAN) framework for the imputation and short-range forecasting of daily air temperature over Chennai, India, with emphasis on heatwave events. Seventy-six years (1950 to 2025) of ERA5-Land daily reanalysis covering six meteorological variables were retrieved from Google Earth Engine through API-based extraction. Following exploratory data analysis and heatwave characterisation, three architectures were developed and evaluated under an identical chronological split and a realistic missingness pattern of random and contiguous gaps: a conventional task-specific GAN, a Shared GAN in which a single bidirectional LSTM generator serves both tasks, and a Shared Wasserstein GAN with gradient penalty (Shared WGAN-GP). On the 2014 to 2025 test period, the Shared WGAN-GP achieved the lowest imputation error on every metric, reducing temperature RMSE by 12 percent relative to the other models, whereas the dedicated GAN forecaster produced the most accurate seven-day forecasts, with an RMSE of 0.93 degrees Celsius and a coefficient of determination of 0.85. Both shared models handled the two tasks with 28 percent fewer generator parameters and less training time. The framework is further extended towards detecting El Nino-related temperature anomalies from the reconstructed records. These results indicate that the Shared WGAN-GP is a robust and efficient choice for climate-data reconstruction in support of heatwave analysis.
+\end{abstract}
+
+\begin{IEEEkeywords}
+El Nino, generative adversarial networks, heatwaves, missing-data imputation, temperature forecasting, Wasserstein GAN
+\end{IEEEkeywords}
+
+\end{document}
