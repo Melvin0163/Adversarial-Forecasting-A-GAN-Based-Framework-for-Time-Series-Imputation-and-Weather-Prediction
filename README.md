@@ -19,7 +19,7 @@ A complete walkthrough of the project, covering the data, pipeline, models, metr
 | **Shared WGAN-GP** | same generator architecture | block-level Wasserstein critic with gradient penalty | imputation, with re-masking of observed values | imputation and forecasting |
 | **Simple GAN** | one generator per task | GAIN-style discriminator (imputation); conditional discriminator (forecasting) | each task separately | the task it was trained for |
 
-Only GAN variants are compared; no non-GAN baseline is included.
+The GAN variants are also compared with five non-GAN forecasting baselines; see [Non-GAN baselines](#non-gan-baselines).
 
 ## Data
 
@@ -87,6 +87,44 @@ RMSE by lead day, from day 1 to day 7: Simple GAN 0.61 to 1.08, Shared WGAN-GP 0
 
 ![Temporal map of the imputation error on the removed test days](outputs/temporal_map_imputation_error.png)
 
+## Non-GAN baselines
+
+`baselines/run_baselines.py` rebuilds the forecasting setup of Section 7.2 exactly: the same chronological split at 30-day-block boundaries, the same 596 test windows (30-day context, 7-day horizon, stride 7) and the same metric function. Every baseline is fitted on the training period (1950–2003) only, and the validation period chooses its hyper-parameters.
+
+| Baseline | Forecast |
+|---|---|
+| Persistence | the last observed day, repeated for 7 days |
+| Climatology | a smooth seasonal cycle (3 harmonics) fitted on the training years |
+| Anomaly persistence | climatology plus the last day's anomaly, damped by one factor per lead day |
+| ARIMA(2,0,2) on the anomaly | order chosen by validation RMSE from p ≤ 3, q ≤ 2; applied to each window's 30-day context |
+| Ridge regression | a direct 7-output linear model on the full 30-day × 6-variable context (α = 10, chosen on validation) |
+
+Because the seasonal cycle alone already explains most of the variance, the table also gives a **skill score against climatology**, 1 − (RMSE / RMSE<sub>climatology</sub>)².
+
+**7-day temperature forecasting, all models** (596 test windows, sorted by RMSE)
+
+| Model | Type | `RMSE` | `MAE` | `R2` | Skill vs. climatology |
+|---|---|---|---|---|---|
+| Ridge regression | baseline | **0.9183** | **0.6944** | **0.8599** | **0.312** |
+| ARIMA(2,0,2) on anomaly | baseline | 0.9296 | 0.7073 | 0.8565 | 0.295 |
+| Simple GAN (forecasting only) | GAN | 0.9348 | 0.7026 | 0.8548 | 0.287 |
+| Anomaly persistence | baseline | 0.9370 | 0.7140 | 0.8542 | 0.284 |
+| Climatology | baseline | 1.1075 | 0.8858 | 0.7963 | 0 |
+| Persistence | baseline | 1.1239 | 0.8296 | 0.7902 | −0.030 |
+| Shared WGAN-GP | GAN | 1.3200 | 1.0537 | 0.7106 | −0.420 |
+| Shared GAN | GAN | 1.7635 | 1.4335 | 0.4834 | −1.536 |
+
+RMSE by lead day, from day 1 to day 7: ridge regression 0.58 to 1.05, ARIMA 0.59 to 1.06, anomaly persistence 0.60 to 1.07, persistence 0.65 to 1.35; climatology stays between 1.07 and 1.17 at every lead day.
+
+**What the baselines show**
+
+* **The Simple GAN forecaster is as good as the best simple models, not better.** Its RMSE (0.935) lies between ridge regression (0.918) and anomaly persistence (0.937); the differences between these four models are about 2 %, within what one run with one seed can resolve.
+* **R² overstates every model's skill here.** Climatology alone reaches R² = 0.80, so the Simple GAN's 0.85 removes about 29 % of the seasonal cycle's squared error, the same as ARIMA (30 %) and ridge regression (31 %).
+* **The shared generators do not beat climatology at forecasting.** Both have negative skill: a seasonal average is more accurate than their 7-day forecasts. Their advantage is in imputation and cost, not forecasting.
+* **Run:** `python baselines/run_baselines.py` (about a minute on a CPU; no TensorFlow needed). It writes `outputs/baseline_forecast_metrics.csv`, `outputs/baseline_rmse_by_lead_day.csv`, `outputs/forecast_metrics_all_models.csv` and the figure below.
+
+![RMSE and R² of the GAN models and the non-GAN baselines on the 596 test windows](outputs/baselines_vs_gan.png)
+
 
 ## Running the notebook
 
@@ -115,12 +153,16 @@ Running the notebook writes these files to `outputs/`; the files of the run show
 | `forecast_comparison_metrics.csv` | forecasting metrics of all three models |
 | `comparison_accuracy.csv`, `comparison_efficiency.csv` | the comparison tables of Section 9 |
 | `run_summary.json` | data summary, hyperparameters and metrics of the shared models |
+| `baseline_forecast_metrics.csv`, `baseline_rmse_by_lead_day.csv` | metrics of the non-GAN baselines (written by `baselines/run_baselines.py`) |
+| `forecast_metrics_all_models.csv` | GAN models and baselines in one table, with the skill score against climatology |
 | `*.png` | all figures, including the temporal maps of the imputed temperatures |
 
 ## Repository structure
 
 ```
 ├── Adversarial_Forecasting_GAN.ipynb   # the complete, executed study
+├── baselines/
+│   └── run_baselines.py                # non-GAN forecasting baselines (persistence ... ridge)
 ├── PROJECT_GUIDE.md                    # complete walkthrough of the project
 ├── data/
 │   └── era5_chennai_1950_2025.csv      # ERA5-Land extract used in the study
